@@ -6,6 +6,7 @@ from reportlab.lib.units import inch, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont, TTFError
 from reportlab.lib.colors import black, toColor, HexColor, gray
+# from strictyaml import load, Map, Str, Int, Seq, YAMLError
 
 import math
 import sys
@@ -25,6 +26,9 @@ if "--roboto" in sys.argv:
         print("Error: {}".format(e))
         exit(1)
 
+# if "--input" in sys.argv:
+#     with open("/resistorLabels/resistors.yaml", "r") as f: #TODO: don't hardcode value, instead use argparse
+#         resistor_data = load(f.read())
 else:
     for font_name in ['ArialBd.ttf', 'Arial_Bold.ttf']:
         try:
@@ -69,12 +73,25 @@ AVERY_5260 = PaperConfig(
     pagesize=LETTER,
     sticker_width=(2 + 5/8) * inch,
     sticker_height=1 * inch,
+    # sticker_width=(1 + 3/4) * inch,
+    # sticker_height=(2/3) * inch,
     sticker_corner_radius=0.1 * inch,
     left_margin=3/16 * inch,
     top_margin=0.5 * inch,
     horizontal_stride=(2 + 6/8) * inch,
     vertical_stride=1 * inch,
 )
+
+# AVERY_5195= PaperConfig(
+#     pagesize=LETTER,
+#     sticker_width=1.75 * inch,          #done
+#     sticker_height=0.67 * inch,         #done
+#     sticker_corner_radius=0.1 * inch,
+#     left_margin=3/16 * inch,
+#     top_margin=0.5 * inch,
+#     horizontal_stride=(2 + 6/8) * inch,
+#     vertical_stride=1 * inch,
+# )
 
 
 AVERY_L7157 = PaperConfig(
@@ -114,8 +131,11 @@ class StickerRect:
 
 class ResistorValue:
     def __init__(self, ohms):
-        # Fixed-point value with 2 decimals precision
-        ohms_exp = math.floor(math.log10(ohms))
+        if ohms == 0:
+            ohms_exp = 0
+        else:
+            # Fixed-point value with 2 decimals precision
+            ohms_exp = math.floor(math.log10(ohms))
         ohms_val = round(ohms / math.pow(10, ohms_exp - 2))
         ohms_exp -= 2
 
@@ -126,7 +146,7 @@ class ResistorValue:
         self.ohms_val = ohms_val
         self.ohms_exp = ohms_exp + 2
 
-        # print(self.ohms_val, self.ohms_exp, self.format_value(), self.get_value())
+        print(self.ohms_val, self.ohms_exp, self.format_value(), self.get_value())
 
     def get_value(self):
         return self.ohms_val * math.pow(10, self.ohms_exp - 2)
@@ -309,7 +329,10 @@ def get_3digit_code(value):
         return digits + multiplier
 
     if value.ohms_exp == 0:
-        return digits[0] + "R" + digits[1]
+        if value.ohms_val == 0:
+            return "R" + digits
+        else:
+            return digits[0] + "R" + digits[1]
 
     if value.ohms_exp == -1:
         return "R" + digits
@@ -333,7 +356,10 @@ def get_4digit_code(value):
         return digits[0] + digits[1] + "R" + digits[2]
 
     if value.ohms_exp == 0:
-        return digits[0] + "R" + digits[1] + digits[2]
+        if value.ohms_val == 0:
+            return "R" + digits
+        else: 
+            return digits[0] + "R" + digits[1] + digits[2]
 
     if value.ohms_exp == -1:
         return "R" + digits
@@ -458,8 +484,6 @@ def draw_resistor_sticker(c, layout, row, column, ohms, draw_center_line=True):
 def render_stickers(c, layout: PaperConfig, values, draw_center_line=True):
     for (rowId, row) in enumerate(values):
         for (columnId, value) in enumerate(row):
-            if not value:
-                continue
             draw_resistor_sticker(c, layout, rowId, columnId, value, draw_center_line)
 
 
@@ -491,17 +515,16 @@ def main():
     #
     # Add "None" if no label should get generated at a specific position.
     # ############################################################################
+    # if resistor_data:
+    #     # create a 2 dimensional array 3x10 with the values
+    #     resistor_values = [[None for x in range(10)] for y in range(3)]
+
     resistor_values = [
-        [.1,           .02,          .003],
-        [1,            12,           13],
-        [210,          220,          330],
-        [3100,         3200,         3300],
-        [41000,        42000,        43000],
-        [510000,       None,         530000],
-        [6100000,      6200000,      6300000],
-        [71000000,     72000000,     73000000],
-        [810000000,    820000000,    830000000],
-        [9100000000,   9200000000,   3300000000],
+        [0,           1,          10],
+        [100,       1000,       10000],
+        [0.1,       0.01,       0.001],
+        [200000, 3000000, 40000000],
+
     ]
 
     # Create the render canvas
